@@ -1,32 +1,29 @@
+import PageSettings from "./PageSettings";
+
 class TextRenderer {
-  constructor(ctx, width, height, fontSize = 20, padding = 10) {
+  constructor(ctx, pageSettings, fontSize = 20) {
     this._ctx = ctx;
-    this._width = width;
-    this._height = height;
+    this.pageSettings = pageSettings; // Utilisation de la classe PageSettings pour les dimensions
+
     this._fontSize = fontSize;
     this._lineHeight = fontSize * 1.2;
-    this._padding = padding; // Assurez-vous que padding est bien défini ici
 
     this._dpr = window.devicePixelRatio || 1;
 
-    this._ctx.canvas.width = width * this._dpr;
-    this._ctx.canvas.height = height * this._dpr;
+    this._ctx.canvas.width = this.pageSettings.getCanvasWidth() * this._dpr;
+    this._ctx.canvas.height = this.pageSettings.getCanvasHeight() * this._dpr;
 
-    this._ctx.canvas.style.width = `${width}px`;
-    this._ctx.canvas.style.height = `${height}px`;
+    this._ctx.canvas.style.width = `${this.pageSettings.getCanvasWidth()}px`;
+    this._ctx.canvas.style.height = `${this.pageSettings.getCanvasHeight()}px`;
 
     this._ctx.scale(this._dpr, this._dpr);
 
     this._ctx.font = `${fontSize}px Arial`;
     this._ctx.textBaseline = "top";
-    this._maxWidth = this._width - 2 * this._padding;
+    this._maxWidth = this.pageSettings.getContentWidth();
   }
 
-  // Getter pour accéder à padding
-  get padding() {
-    return this._padding;
-  }
-
+  // Getter pour accéder à la hauteur de ligne
   get lineHeight() {
     return this._lineHeight;
   }
@@ -60,7 +57,7 @@ class TextRenderer {
   getCursorPositionFromCoordinates(x, y, textBuffer) {
     let cursorPosition = 0;
     const paragraphs = textBuffer.paragraphs;
-    let yPosition = this._padding;
+    let yPosition = this.pageSettings.getMarginTop(); // Utilisation de la marge supérieure
 
     for (let i = 0; i < paragraphs.length; i++) {
       const lines = this.wrapText(paragraphs[i]);
@@ -69,19 +66,25 @@ class TextRenderer {
         const lineHeight = this._lineHeight;
 
         if (y >= yPosition && y < yPosition + lineHeight) {
-          let xPosition = this._padding;
+          let xPosition = this.pageSettings.getMarginLeft(); // Utilisation de la marge gauche
+
+          // Si le clic est à gauche du début de la ligne
+          if (x < xPosition) {
+            return cursorPosition; // Début de la ligne
+          }
 
           for (let k = 0; k < line.length; k++) {
             const charWidth = this._ctx.measureText(line[k]).width;
 
             if (x >= xPosition && x < xPosition + charWidth) {
-              return cursorPosition + k; // Supprimer l'ajout de i
+              return cursorPosition + k; // Position exacte dans la ligne
             }
             xPosition += charWidth;
           }
 
+          // Si le clic est à droite de la fin de la ligne
           if (x >= xPosition) {
-            return cursorPosition + line.length; // Supprimer l'ajout de i
+            return cursorPosition + line.length - 1; // Fin de la ligne
           }
         }
 
@@ -89,17 +92,22 @@ class TextRenderer {
         yPosition += lineHeight;
       }
 
-      cursorPosition += 1; // Pour le saut de ligne
+      cursorPosition; // Pour le saut de ligne
     }
 
-    return cursorPosition;
+    return cursorPosition; // Retourne l'index global à la fin du texte si le clic est en dehors de tout texte
   }
 
   render(textBuffer, cursor) {
-    this._ctx.clearRect(0, 0, this._width, this._height);
+    this._ctx.clearRect(
+      0,
+      0,
+      this.pageSettings.getCanvasWidth(),
+      this.pageSettings.getCanvasHeight()
+    );
 
     const paragraphs = textBuffer.paragraphs;
-    let y = this._padding;
+    let y = this.pageSettings.getMarginTop(); // Utilisation de la marge supérieure
     let cursorX = null;
     let cursorY = null;
     let globalCursorIndex = cursor.position;
@@ -111,7 +119,7 @@ class TextRenderer {
 
       for (let j = 0; j < lines.length; j++) {
         let line = lines[j];
-        this._ctx.fillText(line, this._padding, y);
+        this._ctx.fillText(line, this.pageSettings.getMarginLeft(), y); // Utilisation de la marge gauche
 
         if (
           globalCursorIndex >= lineStartIndex &&
@@ -120,7 +128,7 @@ class TextRenderer {
           cursorX =
             this._ctx.measureText(
               line.substring(0, globalCursorIndex - lineStartIndex)
-            ).width + this._padding;
+            ).width + this.pageSettings.getMarginLeft();
           cursorY = y;
         }
 
@@ -128,13 +136,24 @@ class TextRenderer {
         y += this._lineHeight;
       }
 
-      // Mettre à jour l'index global sans ajouter l'index du paragraphe
       globalCursorIndex -= lineStartIndex;
     }
 
     if (cursorX !== null && cursorY !== null) {
       cursor.draw(this._ctx, cursorX, cursorY, this._fontSize);
     }
+  }
+
+  getTotalTextHeight(textBuffer) {
+    const paragraphs = textBuffer.paragraphs;
+    let totalHeight = 0;
+
+    for (let i = 0; i < paragraphs.length; i++) {
+      const lines = this.wrapText(paragraphs[i]);
+      totalHeight += lines.length * this._lineHeight;
+    }
+
+    return totalHeight + this.pageSettings.getMarginTop(); // Ajouter la marge supérieure
   }
 }
 

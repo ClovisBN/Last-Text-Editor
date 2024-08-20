@@ -95,14 +95,47 @@ class TextBuffer {
   }
 
   delete() {
+    const { paragraphIndex, relativeIndex } = this.getParagraphIndexFromGlobal(
+      this.cursorPosition
+    );
+
+    // Vérifie si le paragraphe est vide et le supprime
+    if (this.paragraphs[paragraphIndex] === "") {
+      this.deleteEmptyParagraph();
+      return;
+    }
+
+    // Vérifie si le curseur est au début d'un paragraphe non vide
+    if (relativeIndex === 0 && paragraphIndex > 0) {
+      this.mergeWithPreviousParagraph(paragraphIndex);
+      return;
+    }
+
+    // Supprime le caractère avant le curseur s'il n'est pas au début du paragraphe
     if (this.cursorPosition > 0) {
-      const { paragraphIndex, relativeIndex } =
-        this.getParagraphIndexFromGlobal(this.cursorPosition);
       let paragraph = this.paragraphs[paragraphIndex];
       paragraph =
         paragraph.slice(0, relativeIndex - 1) + paragraph.slice(relativeIndex);
       this.paragraphs[paragraphIndex] = paragraph;
       this.cursorPosition--;
+    }
+  }
+
+  deleteEmptyParagraph() {
+    const { paragraphIndex } = this.getParagraphIndexFromGlobal(
+      this.cursorPosition
+    );
+    const globalIndex = this.cursorPosition;
+    console.log(paragraphIndex);
+    // Vérifiez si le paragraphe est vide
+    if (this.paragraphs[paragraphIndex] === "") {
+      if (paragraphIndex > 0) {
+        this.paragraphs.splice(paragraphIndex, 1);
+        this.cursorPosition = globalIndex - 1; // Se déplacer à la fin du paragraphe précédent
+      } else {
+        // Si c'était le premier paragraphe, placer le curseur au début du texte
+        this.cursorPosition = 0;
+      }
     }
   }
 
@@ -139,6 +172,20 @@ class TextBuffer {
     }
 
     this.cursorPosition = start;
+  }
+
+  mergeWithPreviousParagraph(paragraphIndex) {
+    const currentParagraph = this.paragraphs[paragraphIndex];
+    const previousParagraph = this.paragraphs[paragraphIndex - 1];
+
+    // Déplace le texte du paragraphe actuel à la fin du paragraphe précédent
+    this.paragraphs[paragraphIndex - 1] = previousParagraph + currentParagraph;
+
+    // Supprime le paragraphe actuel
+    this.paragraphs.splice(paragraphIndex, 1);
+
+    // Met à jour la position du curseur à la fin du texte déplacé
+    this.cursorPosition--;
   }
 
   splitParagraph() {

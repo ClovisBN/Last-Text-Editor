@@ -56,7 +56,7 @@ class TextSelection {
 
     const paragraphs = textBuffer.paragraphs;
     let totalChars = 0;
-    let y = renderer.padding;
+    let y = renderer.pageSettings.getMarginTop(); // Utilisation de la marge supérieure
 
     for (let i = 0; i < paragraphs.length; i++) {
       const paragraph = paragraphs[i];
@@ -82,18 +82,14 @@ class TextSelection {
             line.substring(0, selectionEndInLine - lineStart)
           ).width;
 
-          const xStart = startWidth + renderer.padding;
-          const xEnd = endWidth + renderer.padding;
+          const xStart = startWidth + renderer.pageSettings.getMarginLeft(); // Utilisation de la marge gauche
+          const xEnd = endWidth + renderer.pageSettings.getMarginLeft();
 
-          // Vérification pour éviter les valeurs NaN
           if (!isNaN(xStart) && !isNaN(xEnd) && !isNaN(y)) {
-            const rectHeight = renderer._fontSize; // Adapte le surlignement à la taille de la police
+            const rectHeight = renderer.fontSize; // Adapte le surlignement à la taille de la police
 
             ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
             ctx.fillRect(xStart, y, xEnd - xStart, rectHeight);
-
-            // Log uniquement la hauteur de la sélection
-            console.log(`Surlignement: hauteur=${rectHeight}, y=${y}`);
 
             // Redessiner le texte par-dessus la sélection
             ctx.fillStyle = "black";
@@ -111,8 +107,6 @@ class TextSelection {
         totalChars += line.length;
         y += renderer.lineHeight;
       }
-
-      totalChars += 1; // Pour simuler le saut de ligne
     }
   }
 }

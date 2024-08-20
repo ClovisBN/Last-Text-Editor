@@ -1,19 +1,23 @@
-import TextBuffer from "./TextBuffer.js";
-import TextRenderer from "./TextRenderer.js";
-import Cursor from "./Cursor.js";
-import TextSelection from "./TextSelection.js";
+import TextBuffer from "./TextBuffer";
+import PageSettings from "./PageSettings";
+import TextRenderer from "./TextRenderer";
+import Cursor from "./Cursor";
+import TextSelection from "./TextSelection";
 
 class TextEditor {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
 
-    this.canvas.width = 400; // Exemple de largeur
-    this.canvas.height = 300; // Exemple de hauteur
+    // Utilisation de PageSettings pour définir les dimensions du canvas
+    this.pageSettings = new PageSettings();
+
+    this.canvas.width = this.pageSettings.getCanvasWidth();
+    this.canvas.height = this.pageSettings.getCanvasHeight();
 
     this.textBuffer = new TextBuffer();
     this.cursor = new Cursor();
-    this.renderer = new TextRenderer(this.ctx, canvas.width, canvas.height);
+    this.renderer = new TextRenderer(this.ctx, this.pageSettings); // Passer PageSettings à TextRenderer
     this.selection = new TextSelection();
 
     this.cursorBlinkInterval = null;
@@ -23,10 +27,10 @@ class TextEditor {
   }
 
   initialize() {
-    this.canvas.addEventListener("keydown", (e) => this.handleKeydown(e));
-    this.canvas.addEventListener("mousedown", (e) => this.handleMouseDown(e));
-    this.canvas.addEventListener("mousemove", (e) => this.handleMouseMove(e));
-    this.canvas.addEventListener("mouseup", () => this.handleMouseUp());
+    document.addEventListener("keydown", (e) => this.handleKeydown(e));
+    document.addEventListener("mousedown", (e) => this.handleMouseDown(e));
+    document.addEventListener("mousemove", (e) => this.handleMouseMove(e));
+    document.addEventListener("mouseup", () => this.handleMouseUp());
     this.canvas.addEventListener("click", () => this.canvas.focus());
     this.canvas.tabIndex = 1000;
     this.startCursorBlinking();
@@ -35,44 +39,65 @@ class TextEditor {
 
   handleMouseDown(e) {
     this.isMouseDown = true;
-    const position = this.getCursorPositionFromMouse(e);
 
-    // Mettre à jour la position du curseur logique dans le TextBuffer
-    this.textBuffer.setCursorPosition(position);
+    // Vérifiez si le clic s'est produit dans le canvas
+    if (e.target !== this.canvas) {
+      return;
+    }
 
-    // Mettre à jour la position du curseur visuel
-    this.cursor.position = position;
+    // Obtenez l'index global du curseur à partir de la position de la souris
+    const globalIndex = this.getCursorPositionFromMouse(e);
 
-    this.selection.clearSelection(); // Effacer la sélection s'il y en a une
+    // Effacer le curseur actuel
+    this.cursor.visible = false;
+    this.render(); // Redessine tout sans le curseur
+
+    // Mettre à jour la position logique du curseur dans le TextBuffer
+    this.textBuffer.setCursorPosition(globalIndex);
+
+    // Mettre à jour la position visuelle du curseur
+    this.cursor.position = globalIndex;
+
+    // Effacer toute sélection existante
+    this.selection.clearSelection();
+
+    // Redessiner l'interface avec le curseur mis à jour
+    this.cursor.visible = true;
     this.render();
-
-    // Ajouter un timeout pour vérifier si l'utilisateur maintient le clic
-    this.mouseDownTimeout = setTimeout(() => {
-      if (this.isMouseDown) {
-        this.selection.startSelection(position); // Démarrer la sélection si l'utilisateur maintient le clic
-      }
-    }, 150); // Délai en millisecondes avant d'activer la sélection
   }
 
   handleMouseMove(e) {
-    if (this.isMouseDown) {
-      const newPosition = this.getCursorPositionFromMouse(e);
+    if (!this.isMouseDown) return;
 
-      // Si la sélection est active, mettre à jour la sélection
-      if (this.selection.active) {
-        this.selection.updateSelection(newPosition);
-        this.cursor.visible = false;
-      } else {
-        // Sinon, déplacez simplement le curseur
-        this.cursor.position = newPosition;
-      }
-      this.render();
+    // Obtenez la nouvelle position globale du curseur
+    const newPosition = this.getCursorPositionFromMouse(e);
+
+    // Si la sélection est active, mettez-la à jour
+    if (this.selection.active) {
+      this.selection.updateSelection(newPosition);
+      this.cursor.visible = false;
+    } else {
+      // Si la sélection n'est pas encore active, démarrez-la
+      this.selection.startSelection(newPosition);
+      this.selection.updateSelection(newPosition);
     }
+
+    // Redessinez l'interface avec la sélection mise à jour
+    this.render();
   }
 
   handleMouseUp() {
     this.isMouseDown = false;
-    clearTimeout(this.mouseDownTimeout); // Annuler le timeout si la souris est relâchée avant la fin du délai
+
+    const selectionRange = this.selection.getSelectionRange();
+
+    // Vérifier si la sélection a le même index de début et de fin
+    if (selectionRange && selectionRange.start === selectionRange.end) {
+      // Placer le curseur à cet index
+      this.cursor.position = selectionRange.start;
+      this.textBuffer.setCursorPosition(selectionRange.start);
+      this.selection.clearSelection(); // Effacer la sélection
+    }
 
     // Si une sélection est active, la rendre inactive après le relâchement
     if (this.selection.active) {
@@ -82,6 +107,7 @@ class TextEditor {
       this.cursor.visible = true;
     }
 
+    // Redessinez l'interface
     this.render();
   }
 
@@ -91,17 +117,42 @@ class TextEditor {
     const selectionRange = this.selection.getSelectionRange();
 
     if (selectionRange) {
-      // Si une sélection est active et que l'utilisateur appuie sur "Backspace" ou "Delete"
-      if (e.key === "Backspace" || e.key === "Delete") {
-        this.textBuffer.deleteRange(selectionRange.start, selectionRange.end);
-        this.cursor.position = selectionRange.start; // Placer le curseur au début de la sélection supprimée
-        this.selection.clearSelection(); // Effacer la sélection après la suppression
-      } else if (e.key === "ArrowLeft") {
-        this.cursor.position = selectionRange.start;
-      } else if (e.key === "ArrowRight") {
-        this.cursor.position = selectionRange.end;
+      switch (e.key) {
+        case "Backspace":
+        case "Delete":
+          this.textBuffer.deleteRange(selectionRange.start, selectionRange.end);
+          this.cursor.position = selectionRange.start;
+          this.selection.clearSelection();
+          break;
+
+        case "ArrowLeft":
+          this.cursor.position = selectionRange.start;
+          this.selection.clearSelection();
+          break;
+
+        case "ArrowRight":
+          this.cursor.position = selectionRange.end;
+          this.selection.clearSelection();
+          break;
+        case "Enter":
+          this.textBuffer.deleteRange(selectionRange.start, selectionRange.end);
+          this.cursor.position = selectionRange.start;
+          this.selection.clearSelection();
+          this.textBuffer.splitParagraph();
+          break;
+
+        default:
+          if (e.key.length === 1) {
+            this.textBuffer.deleteRange(
+              selectionRange.start,
+              selectionRange.end
+            );
+            this.textBuffer.insert(e.key);
+            this.cursor.position = this.textBuffer.getCursorPosition();
+            this.selection.clearSelection();
+          }
+          break;
       }
-      this.selection.clearSelection();
     } else {
       switch (e.key) {
         case "ArrowLeft":
@@ -142,11 +193,50 @@ class TextEditor {
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    return this.renderer.getCursorPositionFromCoordinates(
+
+    let cursorPosition = this.renderer.getCursorPositionFromCoordinates(
       x,
       y,
       this.textBuffer
     );
+
+    const totalTextHeight = this.renderer.getTotalTextHeight(this.textBuffer);
+
+    if (y > totalTextHeight) {
+      const lastParagraph =
+        this.textBuffer.paragraphs[this.textBuffer.paragraphs.length - 1];
+      const lastLine = this.renderer.wrapText(lastParagraph).pop();
+
+      const lineStartX = this.pageSettings.getMarginLeft();
+      const lineEndX =
+        lineStartX + this.renderer._ctx.measureText(lastLine).width;
+
+      if (x <= lineStartX) {
+        cursorPosition = this.textBuffer.getText().length - lastLine.length + 1;
+      } else if (x >= lineEndX) {
+        cursorPosition = this.textBuffer.getText().length;
+      } else {
+        let closestPosition =
+          this.textBuffer.getText().length - lastLine.length;
+        let closestDistance = Infinity;
+
+        for (let i = 0; i < lastLine.length; i++) {
+          const charX =
+            lineStartX +
+            this.renderer._ctx.measureText(lastLine.slice(0, i)).width;
+          const distance = Math.abs(x - charX);
+          if (distance < closestDistance) {
+            closestPosition =
+              this.textBuffer.getText().length - lastLine.length + i;
+            closestDistance = distance;
+          }
+        }
+
+        cursorPosition = closestPosition;
+      }
+    }
+
+    return cursorPosition;
   }
 
   render() {
