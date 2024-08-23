@@ -1,29 +1,110 @@
 class TextBuffer {
   constructor() {
-    this.paragraphs = [""]; // Stocker chaque paragraphe séparément
-    this.cursorPosition = 0; // Index global du curseur
+    this.paragraphs = [
+      {
+        elements: [
+          {
+            textRun: {
+              content: "",
+              textStyle: {},
+            },
+          },
+        ],
+        paragraphStyle: {},
+      },
+    ]; // Store each paragraph separately
+    this.cursorPosition = 0; // Global cursor position
   }
 
-  // Méthode pour obtenir l'index relatif et le paragraphe à partir d'un index global
+  // Method to remove empty text runs, except if the cursor is on them
+  removeEmptyTextRuns() {
+    this.paragraphs.forEach((paragraph, i) => {
+      paragraph.elements = paragraph.elements.filter((element, j) => {
+        const startPosition = this.getGlobalIndexFromParagraphAndElement(i, j);
+        const endPosition = startPosition + element.textRun.content.length;
+
+        return (
+          element.textRun.content !== "" ||
+          (this.cursorPosition >= startPosition &&
+            this.cursorPosition <= endPosition)
+        );
+      });
+
+      if (paragraph.elements.length === 0) {
+        paragraph.elements.push({
+          textRun: {
+            content: "",
+            textStyle: {},
+          },
+        });
+      }
+    });
+  }
+
+  getGlobalIndexFromParagraphAndElement(paragraphIndex, elementIndex) {
+    return (
+      this.paragraphs
+        .slice(0, paragraphIndex)
+        .reduce(
+          (acc, p) =>
+            acc +
+            p.elements.reduce(
+              (elAcc, el) => elAcc + el.textRun.content.length,
+              0
+            ) +
+            1,
+          0
+        ) +
+      this.paragraphs[paragraphIndex].elements
+        .slice(0, elementIndex)
+        .reduce((acc, el) => acc + el.textRun.content.length, 0)
+    );
+  }
+
   getParagraphIndexFromGlobal(globalIndex) {
     let accumulatedLength = 0;
     for (let i = 0; i < this.paragraphs.length; i++) {
-      const paragraphLength = this.paragraphs[i].length;
+      const paragraphLength = this.paragraphs[i].elements.reduce(
+        (acc, element) => acc + element.textRun.content.length,
+        0
+      );
       if (globalIndex <= accumulatedLength + paragraphLength) {
         return {
           paragraphIndex: i,
           relativeIndex: globalIndex - accumulatedLength,
         };
       }
-      accumulatedLength += paragraphLength + 1; // +1 pour compter le saut de ligne
+      accumulatedLength += paragraphLength + 1;
     }
+    const lastParagraph = this.paragraphs[this.paragraphs.length - 1];
     return {
       paragraphIndex: this.paragraphs.length - 1,
-      relativeIndex: this.paragraphs[this.paragraphs.length - 1].length,
+      relativeIndex: lastParagraph.elements.reduce(
+        (acc, element) => acc + element.textRun.content.length,
+        0
+      ),
     };
   }
 
-  // Méthode pour déplacer le curseur à un index global
+  getTextRunFromRelativeIndex(paragraph, relativeIndex) {
+    let accumulatedLength = 0;
+    for (const element of paragraph.elements) {
+      const textRunLength = element.textRun.content.length;
+      if (relativeIndex <= accumulatedLength + textRunLength) {
+        return {
+          textRun: element.textRun,
+          runIndex: relativeIndex - accumulatedLength,
+        };
+      }
+      accumulatedLength += textRunLength;
+    }
+    const lastElement = paragraph.elements[paragraph.elements.length - 1];
+    return {
+      textRun: lastElement.textRun,
+      runIndex: lastElement.textRun.content.length,
+    };
+  }
+
   setCursorPosition(globalIndex) {
     this.cursorPosition = globalIndex;
   }
@@ -32,65 +113,21 @@ class TextBuffer {
     return this.cursorPosition;
   }
 
-  // Méthodes pour déplacer le curseur (toujours en termes d'index globaux)
-  moveCursorLeft() {
-    if (this.cursorPosition > 0) {
-      this.cursorPosition--;
-    }
-  }
-
-  moveCursorRight() {
-    if (this.cursorPosition < this.getText().length) {
-      this.cursorPosition++;
-    }
-  }
-
-  moveCursorUp() {
-    // Implémenter la logique pour déplacer le curseur vers le haut
-    const { paragraphIndex, relativeIndex } = this.getParagraphIndexFromGlobal(
-      this.cursorPosition
-    );
-    if (paragraphIndex > 0) {
-      const previousParagraph = this.paragraphs[paragraphIndex - 1];
-      const newRelativeIndex = Math.min(
-        relativeIndex,
-        previousParagraph.length
-      );
-      this.setCursorPosition(
-        this.cursorPosition -
-          relativeIndex -
-          1 -
-          previousParagraph.length +
-          newRelativeIndex
-      );
-    }
-  }
-
-  moveCursorDown() {
-    // Implémenter la logique pour déplacer le curseur vers le bas
-    const { paragraphIndex, relativeIndex } = this.getParagraphIndexFromGlobal(
-      this.cursorPosition
-    );
-    if (paragraphIndex < this.paragraphs.length - 1) {
-      const nextParagraph = this.paragraphs[paragraphIndex + 1];
-      const newRelativeIndex = Math.min(relativeIndex, nextParagraph.length);
-      this.setCursorPosition(
-        this.cursorPosition +
-          this.paragraphs[paragraphIndex].length +
-          1 +
-          newRelativeIndex
-      );
-    }
-  }
-
   insert(char) {
     const { paragraphIndex, relativeIndex } = this.getParagraphIndexFromGlobal(
       this.cursorPosition
     );
-    let paragraph = this.paragraphs[paragraphIndex];
-    paragraph =
-      paragraph.slice(0, relativeIndex) + char + paragraph.slice(relativeIndex);
-    this.paragraphs[paragraphIndex] = paragraph;
+    const paragraph = this.paragraphs[paragraphIndex];
+    const { textRun, runIndex } = this.getTextRunFromRelativeIndex(
+      paragraph,
+      relativeIndex
+    );
+
+    textRun.content =
+      textRun.content.slice(0, runIndex) +
+      char +
+      textRun.content.slice(runIndex);
+
     this.cursorPosition++;
   }
 
@@ -99,147 +136,211 @@ class TextBuffer {
       this.cursorPosition
     );
 
-    // Vérifie si le paragraphe est vide et le supprime
-    if (this.paragraphs[paragraphIndex] === "") {
-      this.deleteEmptyParagraph();
+    if (this.isParagraphEmpty(paragraphIndex) && paragraphIndex > 0) {
+      this.deleteEmptyParagraph(paragraphIndex);
       return;
     }
 
-    // Vérifie si le curseur est au début d'un paragraphe non vide
     if (relativeIndex === 0 && paragraphIndex > 0) {
       this.mergeWithPreviousParagraph(paragraphIndex);
       return;
     }
 
-    // Supprime le caractère avant le curseur s'il n'est pas au début du paragraphe
     if (this.cursorPosition > 0) {
-      let paragraph = this.paragraphs[paragraphIndex];
-      paragraph =
-        paragraph.slice(0, relativeIndex - 1) + paragraph.slice(relativeIndex);
-      this.paragraphs[paragraphIndex] = paragraph;
+      const paragraph = this.paragraphs[paragraphIndex];
+      const { textRun, runIndex } = this.getTextRunFromRelativeIndex(
+        paragraph,
+        relativeIndex
+      );
+
+      textRun.content =
+        textRun.content.slice(0, runIndex - 1) +
+        textRun.content.slice(runIndex);
       this.cursorPosition--;
     }
   }
 
-  deleteEmptyParagraph() {
-    const { paragraphIndex } = this.getParagraphIndexFromGlobal(
-      this.cursorPosition
-    );
-    const globalIndex = this.cursorPosition;
-    console.log(paragraphIndex);
-    // Vérifiez si le paragraphe est vide
-    if (this.paragraphs[paragraphIndex] === "") {
+  deleteEmptyParagraph(paragraphIndex) {
+    if (this.isParagraphEmpty(paragraphIndex)) {
       if (paragraphIndex > 0) {
         this.paragraphs.splice(paragraphIndex, 1);
-        this.cursorPosition = globalIndex - 1; // Se déplacer à la fin du paragraphe précédent
+        this.cursorPosition--;
       } else {
-        // Si c'était le premier paragraphe, placer le curseur au début du texte
         this.cursorPosition = 0;
       }
     }
   }
 
   deleteRange(start, end) {
-    let {
+    const {
       paragraphIndex: startParagraphIndex,
       relativeIndex: startRelativeIndex,
     } = this.getParagraphIndexFromGlobal(start);
-    let { paragraphIndex: endParagraphIndex, relativeIndex: endRelativeIndex } =
-      this.getParagraphIndexFromGlobal(end);
+    const {
+      paragraphIndex: endParagraphIndex,
+      relativeIndex: endRelativeIndex,
+    } = this.getParagraphIndexFromGlobal(end);
 
     if (startParagraphIndex === endParagraphIndex) {
-      let paragraph = this.paragraphs[startParagraphIndex];
-      this.paragraphs[startParagraphIndex] =
-        paragraph.slice(0, startRelativeIndex) +
-        paragraph.slice(endRelativeIndex);
+      // Case where deletion stays within a single paragraph
+      const paragraph = this.paragraphs[startParagraphIndex];
+      const { textRun: startTextRun, runIndex: startRunIndex } =
+        this.getTextRunFromRelativeIndex(paragraph, startRelativeIndex);
+      const { textRun: endTextRun, runIndex: endRunIndex } =
+        this.getTextRunFromRelativeIndex(paragraph, endRelativeIndex);
+
+      startTextRun.content =
+        startTextRun.content.slice(0, startRunIndex) +
+        endTextRun.content.slice(endRunIndex);
+
+      this.cursorPosition = start;
     } else {
-      let startParagraph = this.paragraphs[startParagraphIndex];
-      this.paragraphs[startParagraphIndex] = startParagraph.slice(
-        0,
-        startRelativeIndex
-      );
+      // Case where deletion spans multiple paragraphs
+      const startParagraph = this.paragraphs[startParagraphIndex];
+      const endParagraph = this.paragraphs[endParagraphIndex];
 
-      let endParagraph = this.paragraphs[endParagraphIndex];
-      this.paragraphs[endParagraphIndex] = endParagraph.slice(endRelativeIndex);
+      // 1. Remove partial content from the first paragraph
+      const { textRun: startTextRun, runIndex: startRunIndex } =
+        this.getTextRunFromRelativeIndex(startParagraph, startRelativeIndex);
+      startTextRun.content = startTextRun.content.slice(0, startRunIndex);
 
-      this.paragraphs.splice(
-        startParagraphIndex + 1,
-        endParagraphIndex - startParagraphIndex - 1
-      );
-      this.paragraphs[startParagraphIndex] +=
-        this.paragraphs[startParagraphIndex + 1];
-      this.paragraphs.splice(startParagraphIndex + 1, 1);
+      // 2. Remove partial content from the last paragraph
+      const { textRun: endTextRun, runIndex: endRunIndex } =
+        this.getTextRunFromRelativeIndex(endParagraph, endRelativeIndex);
+      endTextRun.content = endTextRun.content.slice(endRunIndex);
+
+      // 3. Remove all paragraphs between the first and the last
+      if (endParagraphIndex > startParagraphIndex + 1) {
+        this.paragraphs.splice(
+          startParagraphIndex + 1,
+          endParagraphIndex - startParagraphIndex - 1
+        );
+      }
+
+      // 4. Merge the remaining content of the last paragraph into the first
+      startParagraph.elements.push(...endParagraph.elements);
+
+      // 5. Remove the last paragraph if it is empty after the merge
+      this.paragraphs.splice(endParagraphIndex, 1);
+
+      // Update the cursor position
+      this.cursorPosition = start;
     }
 
-    this.cursorPosition = start;
+    // Remove empty text runs in the updated paragraph
+    this.removeEmptyTextRuns();
   }
 
   mergeWithPreviousParagraph(paragraphIndex) {
     const currentParagraph = this.paragraphs[paragraphIndex];
     const previousParagraph = this.paragraphs[paragraphIndex - 1];
 
-    // Déplace le texte du paragraphe actuel à la fin du paragraphe précédent
-    this.paragraphs[paragraphIndex - 1] = previousParagraph + currentParagraph;
-
-    // Supprime le paragraphe actuel
+    previousParagraph.elements.push(...currentParagraph.elements);
     this.paragraphs.splice(paragraphIndex, 1);
 
-    // Met à jour la position du curseur à la fin du texte déplacé
     this.cursorPosition--;
   }
 
   splitParagraph() {
-    const { paragraphIndex, relativeIndex } = this.getParagraphIndexFromGlobal(
-      this.cursorPosition
-    );
+    const { paragraphIndex, relativeIndex: originalRelativeIndex } =
+      this.getParagraphIndexFromGlobal(this.cursorPosition);
     const paragraph = this.paragraphs[paragraphIndex];
-    const beforeCursor = paragraph.slice(0, relativeIndex);
-    const afterCursor = paragraph.slice(relativeIndex);
 
-    this.paragraphs[paragraphIndex] = beforeCursor;
-    this.paragraphs.splice(paragraphIndex + 1, 0, afterCursor);
+    const beforeCursorElements = [];
+    const afterCursorElements = [];
 
-    this.cursorPosition++; // Avance d'un caractère global (pour le saut de ligne)
+    let remainingRelativeIndex = originalRelativeIndex;
+
+    paragraph.elements.forEach((element) => {
+      const elementLength = element.textRun.content.length;
+
+      if (remainingRelativeIndex >= elementLength) {
+        beforeCursorElements.push(element);
+        remainingRelativeIndex -= elementLength;
+      } else {
+        if (remainingRelativeIndex > 0) {
+          beforeCursorElements.push({
+            textRun: {
+              content: element.textRun.content.slice(0, remainingRelativeIndex),
+              textStyle: element.textRun.textStyle,
+            },
+          });
+        }
+        if (remainingRelativeIndex < elementLength) {
+          afterCursorElements.push({
+            textRun: {
+              content: element.textRun.content.slice(remainingRelativeIndex),
+              textStyle: element.textRun.textStyle,
+            },
+          });
+        }
+        remainingRelativeIndex = 0;
+      }
+    });
+
+    // Ensure there is a textRun in the new paragraph
+    if (afterCursorElements.length === 0) {
+      afterCursorElements.push({
+        textRun: {
+          content: "",
+          textStyle: {},
+        },
+      });
+    }
+
+    // Update the original paragraph with the elements before the cursor
+    this.paragraphs[paragraphIndex].elements = beforeCursorElements;
+
+    // Create a new paragraph with the elements after the cursor
+    this.paragraphs.splice(paragraphIndex + 1, 0, {
+      elements: afterCursorElements,
+      paragraphStyle: paragraph.paragraphStyle,
+    });
+
+    // Place the cursor at the beginning of the new paragraph
+    this.cursorPosition += 1;
+  }
+
+  isParagraphEmpty(paragraphIndex) {
+    return this.paragraphs[paragraphIndex].elements.every(
+      (element) => element.textRun.content === ""
+    );
   }
 
   getText() {
-    return this.paragraphs.join("\n"); // Retourne tout le texte comme une seule chaîne avec des sauts de ligne
+    return this.paragraphs
+      .map((paragraph) =>
+        paragraph.elements.map((element) => element.textRun.content).join("")
+      )
+      .join("\n");
   }
 
   toJSON() {
     let accumulatedLength = 0;
 
-    const content = this.paragraphs.map((paragraph, index) => {
+    const content = this.paragraphs.map((paragraph) => {
+      const paragraphContent = paragraph.elements
+        .map((element) => element.textRun.content)
+        .join("");
       const startIndex = accumulatedLength;
-      const endIndex = startIndex + paragraph.length;
+      const endIndex = startIndex + paragraphContent.length;
 
-      accumulatedLength = endIndex + 1; // +1 pour le saut de ligne entre les paragraphes
+      accumulatedLength = endIndex + 1;
 
       return {
         startIndex: startIndex,
         endIndex: endIndex,
-        paragraph: {
-          elements: [
-            {
-              textRun: {
-                content: paragraph,
-                textStyle: {},
-              },
-            },
-          ],
-          paragraphStyle: {},
-        },
+        paragraph: paragraph,
       };
     });
 
-    const documentStructure = {
+    return {
       documentTitle: "My Document Title",
       documentId: "123456789",
       body: {
         content: content,
       },
     };
-    return documentStructure;
   }
 }
 

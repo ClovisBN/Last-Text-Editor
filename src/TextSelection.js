@@ -56,7 +56,7 @@ class TextSelection {
 
     const paragraphs = textBuffer.paragraphs;
     let totalChars = 0;
-    let y = renderer.pageSettings.getMarginTop(); // Utilisation de la marge supérieure
+    let y = renderer.pageSettings.marginTop; // Utilisation de la marge supérieure
 
     for (let i = 0; i < paragraphs.length; i++) {
       const paragraph = paragraphs[i];
@@ -82,8 +82,8 @@ class TextSelection {
             line.substring(0, selectionEndInLine - lineStart)
           ).width;
 
-          const xStart = startWidth + renderer.pageSettings.getMarginLeft(); // Utilisation de la marge gauche
-          const xEnd = endWidth + renderer.pageSettings.getMarginLeft();
+          const xStart = startWidth + renderer.pageSettings.marginLeft; // Utilisation de la marge gauche
+          const xEnd = endWidth + renderer.pageSettings.marginLeft;
 
           if (!isNaN(xStart) && !isNaN(xEnd) && !isNaN(y)) {
             const rectHeight = renderer.fontSize; // Adapte le surlignement à la taille de la police

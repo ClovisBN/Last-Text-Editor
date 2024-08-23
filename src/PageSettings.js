@@ -1,79 +1,74 @@
 class PageSettings {
   constructor() {
     // Dimensions du canvas
-    this.canvasWidth = 900; // Largeur en pixels
-    this.canvasHeight = 1400; // Hauteur en pixels
+    this._canvasWidth = 900; // Largeur en pixels
+    this._canvasHeight = 1400; // Hauteur en pixels
 
     // Marges du canvas
-    this.marginTop = 96; // Marge supérieure en pixels
-    this.marginBottom = 96; // Marge inférieure en pixels
-    this.marginLeft = 96; // Marge gauche en pixels
-    this.marginRight = 96; // Marge droite en pixels
+    this._marginTop = 96; // Marge supérieure en pixels
+    this._marginBottom = 96; // Marge inférieure en pixels
+    this._marginLeft = 96; // Marge gauche en pixels
+    this._marginRight = 96; // Marge droite en pixels
 
     // Taille de la zone de contenu (calculée)
-    this.contentWidth = this.canvasWidth - this.marginLeft - this.marginRight;
-    this.contentHeight = this.canvasHeight - this.marginTop - this.marginBottom;
+    this.updateContentDimensions();
   }
 
-  // Méthode pour obtenir la largeur du canvas
-  getCanvasWidth() {
-    return this.canvasWidth;
+  // Getters pour les dimensions du canvas et les marges
+  get canvasWidth() {
+    return this._canvasWidth;
   }
 
-  // Méthode pour obtenir la hauteur du canvas
-  getCanvasHeight() {
-    return this.canvasHeight;
+  get canvasHeight() {
+    return this._canvasHeight;
   }
 
-  // Méthode pour obtenir la marge supérieure
-  getMarginTop() {
-    return this.marginTop;
+  get marginTop() {
+    return this._marginTop;
   }
 
-  // Méthode pour obtenir la marge inférieure
-  getMarginBottom() {
-    return this.marginBottom;
+  get marginBottom() {
+    return this._marginBottom;
   }
 
-  // Méthode pour obtenir la marge gauche
-  getMarginLeft() {
-    return this.marginLeft;
+  get marginLeft() {
+    return this._marginLeft;
   }
 
-  // Méthode pour obtenir la marge droite
-  getMarginRight() {
-    return this.marginRight;
+  get marginRight() {
+    return this._marginRight;
   }
 
-  // Méthode pour obtenir la largeur de la zone de contenu
-  getContentWidth() {
-    return this.contentWidth;
+  // Getters pour les dimensions de la zone de contenu
+  get contentWidth() {
+    return this._contentWidth;
   }
 
-  // Méthode pour obtenir la hauteur de la zone de contenu
-  getContentHeight() {
-    return this.contentHeight;
+  get contentHeight() {
+    return this._contentHeight;
   }
 
   // Méthode pour redimensionner le canvas
   setCanvasSize(width, height) {
-    this.canvasWidth = width;
-    this.canvasHeight = height;
+    this._canvasWidth = width;
+    this._canvasHeight = height;
     this.updateContentDimensions();
   }
 
   // Méthode pour mettre à jour les dimensions de la zone de contenu
   updateContentDimensions() {
-    this.contentWidth = this.canvasWidth - this.marginLeft - this.marginRight;
-    this.contentHeight = this.canvasHeight - this.marginTop - this.marginBottom;
+    this._contentWidth =
+      this._canvasWidth - this._marginLeft - this._marginRight;
+    this._contentHeight =
+      this._canvasHeight - this._marginTop - this._marginBottom;
   }
 
   // Méthode pour définir les marges
   setMargins(top, bottom, left, right) {
-    this.marginTop = top;
-    this.marginBottom = bottom;
-    this.marginLeft = left;
-    this.marginRight = right;
+    this._marginTop = top;
+    this._marginBottom = bottom;
+    this._marginLeft = left;
+    this._marginRight = right;
     this.updateContentDimensions();
   }
 }

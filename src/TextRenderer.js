@@ -1,159 +1,159 @@
-import PageSettings from "./PageSettings";
-
 class TextRenderer {
   constructor(ctx, pageSettings, fontSize = 20) {
     this._ctx = ctx;
-    this.pageSettings = pageSettings; // Utilisation de la classe PageSettings pour les dimensions
+    this.pageSettings = pageSettings;
 
     this._fontSize = fontSize;
     this._lineHeight = fontSize * 1.2;
 
     this._dpr = window.devicePixelRatio || 1;
 
-    this._ctx.canvas.width = this.pageSettings.getCanvasWidth() * this._dpr;
-    this._ctx.canvas.height = this.pageSettings.getCanvasHeight() * this._dpr;
-
-    this._ctx.canvas.style.width = `${this.pageSettings.getCanvasWidth()}px`;
-    this._ctx.canvas.style.height = `${this.pageSettings.getCanvasHeight()}px`;
-
-    this._ctx.scale(this._dpr, this._dpr);
+    this._initializeCanvas();
 
     this._ctx.font = `${fontSize}px Arial`;
     this._ctx.textBaseline = "top";
-    this._maxWidth = this.pageSettings.getContentWidth();
+    this._maxWidth = this.pageSettings.contentWidth;
   }
 
-  // Getter pour accéder à la hauteur de ligne
+  _initializeCanvas() {
+    this._ctx.canvas.width = this.pageSettings.canvasWidth * this._dpr;
+    this._ctx.canvas.height = this.pageSettings.canvasHeight * this._dpr;
+
+    this._ctx.canvas.style.width = `${this.pageSettings.canvasWidth}px`;
+    this._ctx.canvas.style.height = `${this.pageSettings.canvasHeight}px`;
+
+    this._ctx.scale(this._dpr, this._dpr);
+  }
+
   get lineHeight() {
     return this._lineHeight;
   }
 
-  // Getter pour la taille de la police
   get fontSize() {
     return this._fontSize;
   }
 
   wrapText(paragraph) {
     const lines = [];
-    const words = paragraph.split(" ");
+    const words = paragraph.elements
+      .map((element) => element.textRun.content)
+      .join("")
+      .split(" ");
     let line = "";
 
-    for (let n = 0; n < words.length; n++) {
-      let testLine = line + words[n] + " ";
-      let metrics = this._ctx.measureText(testLine);
-      let testWidth = metrics.width;
+    words.forEach((word, index) => {
+      let testLine = line + word + " ";
+      let testWidth = this._ctx.measureText(testLine).width;
 
-      if (testWidth > this._maxWidth && n > 0) {
+      if (testWidth > this._maxWidth && index > 0) {
         lines.push(line);
-        line = words[n] + " ";
+        line = word + " ";
       } else {
         line = testLine;
       }
-    }
+    });
+
     lines.push(line);
     return lines;
   }
 
-  getCursorPositionFromCoordinates(x, y, textBuffer) {
-    let cursorPosition = 0;
-    const paragraphs = textBuffer.paragraphs;
-    let yPosition = this.pageSettings.getMarginTop(); // Utilisation de la marge supérieure
-
-    for (let i = 0; i < paragraphs.length; i++) {
-      const lines = this.wrapText(paragraphs[i]);
-      for (let j = 0; j < lines.length; j++) {
-        const line = lines[j];
-        const lineHeight = this._lineHeight;
-
-        if (y >= yPosition && y < yPosition + lineHeight) {
-          let xPosition = this.pageSettings.getMarginLeft(); // Utilisation de la marge gauche
-
-          // Si le clic est à gauche du début de la ligne
-          if (x < xPosition) {
-            return cursorPosition; // Début de la ligne
-          }
-
-          for (let k = 0; k < line.length; k++) {
-            const charWidth = this._ctx.measureText(line[k]).width;
-
-            if (x >= xPosition && x < xPosition + charWidth) {
-              return cursorPosition + k; // Position exacte dans la ligne
-            }
-            xPosition += charWidth;
-          }
-
-          // Si le clic est à droite de la fin de la ligne
-          if (x >= xPosition) {
-            return cursorPosition + line.length - 1; // Fin de la ligne
-          }
-        }
-
-        cursorPosition += line.length;
-        yPosition += lineHeight;
-      }
-
-      cursorPosition; // Pour le saut de ligne
-    }
-
-    return cursorPosition; // Retourne l'index global à la fin du texte si le clic est en dehors de tout texte
-  }
-
   render(textBuffer, cursor) {
-    this._ctx.clearRect(
-      0,
-      0,
-      this.pageSettings.getCanvasWidth(),
-      this.pageSettings.getCanvasHeight()
-    );
+    this._clearCanvas(); // Ensure canvas is cleared before rendering
 
-    const paragraphs = textBuffer.paragraphs;
-    let y = this.pageSettings.getMarginTop(); // Utilisation de la marge supérieure
-    let cursorX = null;
-    let cursorY = null;
     let globalCursorIndex = cursor.position;
+    let y = this.pageSettings.marginTop;
+    let cursorX = null,
+      cursorY = null;
 
-    for (let i = 0; i < paragraphs.length; i++) {
-      let paragraph = paragraphs[i];
+    textBuffer.paragraphs.forEach((paragraph) => {
       const lines = this.wrapText(paragraph);
       let lineStartIndex = 0;
 
-      for (let j = 0; j < lines.length; j++) {
-        let line = lines[j];
-        this._ctx.fillText(line, this.pageSettings.getMarginLeft(), y); // Utilisation de la marge gauche
+      lines.forEach((line) => {
+        let xPosition = this.pageSettings.marginLeft;
 
-        if (
-          globalCursorIndex >= lineStartIndex &&
-          globalCursorIndex <= lineStartIndex + line.length
-        ) {
-          cursorX =
-            this._ctx.measureText(
-              line.substring(0, globalCursorIndex - lineStartIndex)
-            ).width + this.pageSettings.getMarginLeft();
-          cursorY = y;
+        for (let k = 0; k < line.length; k++) {
+          const char = line[k];
+          const { textRun } = this.getTextRunFromLinePosition(
+            paragraph,
+            lineStartIndex + k
+          );
+
+          // Ensure textRun exists and apply the appropriate style
+          if (textRun) {
+            this._applyTextStyle(textRun.textStyle || {});
+          }
+
+          this._ctx.fillText(char, xPosition, y);
+
+          if (
+            textRun &&
+            textRun.textStyle &&
+            textRun.textStyle.textDecoration === "underline"
+          ) {
+            // Draw underline
+            const charWidth = this._ctx.measureText(char).width;
+            this._ctx.beginPath();
+            this._ctx.moveTo(xPosition, y + this._fontSize);
+            this._ctx.lineTo(xPosition + charWidth, y + this._fontSize);
+            this._ctx.strokeStyle = this._ctx.fillStyle;
+            this._ctx.lineWidth = 1;
+            this._ctx.stroke();
+          }
+
+          if (globalCursorIndex === lineStartIndex + k) {
+            cursorX = xPosition;
+            cursorY = y;
+          }
+
+          xPosition += this._ctx.measureText(char).width;
         }
 
-        lineStartIndex += line.length;
         y += this._lineHeight;
-      }
+        lineStartIndex += line.length;
+      });
 
       globalCursorIndex -= lineStartIndex;
-    }
+    });
 
     if (cursorX !== null && cursorY !== null) {
       cursor.draw(this._ctx, cursorX, cursorY, this._fontSize);
     }
   }
 
-  getTotalTextHeight(textBuffer) {
-    const paragraphs = textBuffer.paragraphs;
-    let totalHeight = 0;
+  _applyTextStyle(textStyle) {
+    this._ctx.font = `${this._fontSize}px Arial`;
 
-    for (let i = 0; i < paragraphs.length; i++) {
-      const lines = this.wrapText(paragraphs[i]);
-      totalHeight += lines.length * this._lineHeight;
+    if (textStyle.fontWeight) {
+      this._ctx.font = `${textStyle.fontWeight} ${this._ctx.font}`;
     }
+    if (textStyle.fontStyle) {
+      this._ctx.font = `${textStyle.fontStyle} ${this._ctx.font}`;
+    }
+  }
 
-    return totalHeight + this.pageSettings.getMarginTop(); // Ajouter la marge supérieure
+  _clearCanvas() {
+    this._ctx.clearRect(
+      0,
+      0,
+      this.pageSettings.canvasWidth,
+      this.pageSettings.canvasHeight
+    );
+  }
+
+  getTextRunFromLinePosition(paragraph, linePosition) {
+    let accumulatedLength = 0;
+    for (const element of paragraph.elements) {
+      const textRunLength = element.textRun.content.length;
+      if (linePosition < accumulatedLength + textRunLength) {
+        return {
+          textRun: element.textRun,
+          runIndex: linePosition - accumulatedLength,
+        };
+      }
+      accumulatedLength += textRunLength;
+    }
+    return { textRun: null, runIndex: 0 };
   }
 }
 
