@@ -36,15 +36,7 @@ class TextRenderer {
   wrapText(paragraph) {
     const lines = [];
     const words = paragraph.elements
-      .map((element) => {
-        // Considérer un `TextRun` valide même si son contenu est vide
-        if (element && typeof element.content === "string") {
-          return element.content;
-        } else {
-          console.error("Invalid element found in paragraph: ", element);
-          return ""; // Eviter les erreurs si un élément est invalide
-        }
-      })
+      .map((element) => element.content)
       .join("")
       .split(" ");
     let line = "";
@@ -82,30 +74,8 @@ class TextRenderer {
 
         for (let k = 0; k < line.length; k++) {
           const char = line[k];
-          const { textRun } = this.getTextRunFromLinePosition(
-            paragraph,
-            lineStartIndex + k
-          );
-
-          if (textRun) {
-            this._applyTextStyle(textRun.textStyle || {});
-          }
 
           this._ctx.fillText(char, xPosition, y);
-
-          if (
-            textRun &&
-            textRun.textStyle &&
-            textRun.textStyle.textDecoration === "underline"
-          ) {
-            const charWidth = this._ctx.measureText(char).width;
-            this._ctx.beginPath();
-            this._ctx.moveTo(xPosition, y + this._fontSize);
-            this._ctx.lineTo(xPosition + charWidth, y + this._fontSize);
-            this._ctx.strokeStyle = this._ctx.fillStyle;
-            this._ctx.lineWidth = 1;
-            this._ctx.stroke();
-          }
 
           if (globalCursorIndex === lineStartIndex + k) {
             cursorX = xPosition;
@@ -124,17 +94,6 @@ class TextRenderer {
 
     if (cursorX !== null && cursorY !== null) {
       cursor.draw(this._ctx, cursorX, cursorY, this._fontSize);
-    }
-  }
-
-  _applyTextStyle(textStyle) {
-    this._ctx.font = `${this._fontSize}px Arial`;
-
-    if (textStyle.fontWeight) {
-      this._ctx.font = `${textStyle.fontWeight} ${this._ctx.font}`;
-    }
-    if (textStyle.fontStyle) {
-      this._ctx.font = `${textStyle.fontStyle} ${this._ctx.font}`;
     }
   }
 

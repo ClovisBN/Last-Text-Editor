@@ -37,8 +37,10 @@ class TextRun {
 
   toJSON() {
     return {
-      content: this.content,
-      textStyle: this.textStyle,
+      textRun: {
+        content: this.content,
+        textStyle: this.textStyle,
+      },
     };
   }
 }
