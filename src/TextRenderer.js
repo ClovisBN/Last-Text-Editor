@@ -36,7 +36,15 @@ class TextRenderer {
   wrapText(paragraph) {
     const lines = [];
     const words = paragraph.elements
-      .map((element) => element.textRun.content)
+      .map((element) => {
+        // Considérer un `TextRun` valide même si son contenu est vide
+        if (element && typeof element.content === "string") {
+          return element.content;
+        } else {
+          console.error("Invalid element found in paragraph: ", element);
+          return ""; // Eviter les erreurs si un élément est invalide
+        }
+      })
       .join("")
       .split(" ");
     let line = "";
@@ -79,7 +87,6 @@ class TextRenderer {
             lineStartIndex + k
           );
 
-          // Ensure textRun exists and apply the appropriate style
           if (textRun) {
             this._applyTextStyle(textRun.textStyle || {});
           }
@@ -91,7 +98,6 @@ class TextRenderer {
             textRun.textStyle &&
             textRun.textStyle.textDecoration === "underline"
           ) {
-            // Draw underline
             const charWidth = this._ctx.measureText(char).width;
             this._ctx.beginPath();
             this._ctx.moveTo(xPosition, y + this._fontSize);
@@ -144,10 +150,10 @@ class TextRenderer {
   getTextRunFromLinePosition(paragraph, linePosition) {
     let accumulatedLength = 0;
     for (const element of paragraph.elements) {
-      const textRunLength = element.textRun.content.length;
+      const textRunLength = element.content.length;
       if (linePosition < accumulatedLength + textRunLength) {
         return {
-          textRun: element.textRun,
+          textRun: element,
           runIndex: linePosition - accumulatedLength,
         };
       }
