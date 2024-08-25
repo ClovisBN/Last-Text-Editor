@@ -6,6 +6,41 @@ class Paragraph {
     this.paragraphStyle = paragraphStyle;
   }
 
+  applyStyleToRange(startIndex, endIndex, style) {
+    let currentIndex = 0;
+    const newElements = [];
+
+    for (let element of this.elements) {
+      const elementLength = element.content.length;
+
+      if (
+        currentIndex + elementLength < startIndex ||
+        currentIndex > endIndex
+      ) {
+        // Element is completely outside the range
+        newElements.push(element);
+      } else {
+        // Element is partially or completely within the range
+        const elementStartIndex = Math.max(startIndex - currentIndex, 0);
+        const elementEndIndex = Math.min(
+          endIndex - currentIndex,
+          elementLength
+        );
+
+        const styledParts = element.applyStyle(
+          elementStartIndex,
+          elementEndIndex,
+          style
+        );
+        newElements.push(...styledParts);
+      }
+
+      currentIndex += elementLength;
+    }
+
+    this.elements = newElements;
+  }
+
   getTotalLength() {
     return this.elements.reduce(
       (acc, element) => acc + (element?.content?.length || 0),

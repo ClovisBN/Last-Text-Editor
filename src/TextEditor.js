@@ -65,6 +65,11 @@ class TextEditor {
   render() {
     this.rendererManager.renderAll();
   }
+
+  applyStyleToSelection(style) {
+    this.textBuffer.applyStyleToSelection(this.selection, style);
+    this.render(); // Re-render to apply the new style visually
+  }
 }
 
 export default TextEditor;

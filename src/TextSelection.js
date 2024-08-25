@@ -56,7 +56,7 @@ class TextSelection {
 
     const paragraphs = textBuffer.paragraphs;
     let totalChars = 0;
-    let y = renderer.pageSettings.marginTop; // Utilisation de la marge supérieure
+    let y = renderer.pageSettings.marginTop;
 
     for (let i = 0; i < paragraphs.length; i++) {
       const paragraph = paragraphs[i];
@@ -75,32 +75,36 @@ class TextSelection {
         const selectionEndInLine = Math.min(range.end, lineEnd);
 
         if (selectionStartInLine < selectionEndInLine) {
-          const startWidth = ctx.measureText(
-            line.substring(0, selectionStartInLine - lineStart)
-          ).width;
-          const endWidth = ctx.measureText(
-            line.substring(0, selectionEndInLine - lineStart)
-          ).width;
+          let xPosition = renderer.pageSettings.marginLeft;
 
-          const xStart = startWidth + renderer.pageSettings.marginLeft; // Utilisation de la marge gauche
-          const xEnd = endWidth + renderer.pageSettings.marginLeft;
+          for (let k = 0; k < line.length; k++) {
+            const char = line[k];
+            const charPosition = lineStart + k;
 
-          if (!isNaN(xStart) && !isNaN(xEnd) && !isNaN(y)) {
-            const rectHeight = renderer.fontSize; // Adapte le surlignement à la taille de la police
-
-            ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
-            ctx.fillRect(xStart, y, xEnd - xStart, rectHeight);
-
-            // Redessiner le texte par-dessus la sélection
-            ctx.fillStyle = "black";
-            ctx.fillText(
-              line.substring(
-                selectionStartInLine - lineStart,
-                selectionEndInLine - lineStart
-              ),
-              xStart,
-              y
+            const { textRun } = renderer.getTextRunFromLinePosition(
+              paragraph,
+              lineStart + k
             );
+
+            if (textRun) {
+              renderer._applyTextStyle(textRun.textStyle);
+            }
+
+            const charWidth = ctx.measureText(char).width;
+
+            if (
+              charPosition >= selectionStartInLine &&
+              charPosition < selectionEndInLine
+            ) {
+              ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+              ctx.fillRect(xPosition, y, charWidth, renderer.fontSize);
+
+              // Dessine le texte sélectionné sur le surlignement
+              ctx.fillStyle = textRun.textStyle?.color || "black";
+              ctx.fillText(char, xPosition, y);
+            }
+
+            xPosition += charWidth;
           }
         }
 

@@ -2,23 +2,53 @@ import Paragraph from "./Paragraph";
 
 class TextBuffer {
   constructor() {
-    this.paragraphs = [new Paragraph()]; // Initialiser avec un seul paragraphe vide
-    this.cursorPosition = 0; // Position globale du curseur
+    this.paragraphs = [new Paragraph()];
+    this.cursorPosition = 0;
   }
 
-  removeEmptyTextRuns() {
-    this.paragraphs.forEach((paragraph) => {
-      paragraph.removeEmptyTextRuns(this.cursorPosition);
-    });
-  }
+  applyStyleToSelection(selection, style) {
+    const range = selection.getSelectionRange();
+    if (!range) return;
 
-  getGlobalIndexFromParagraphAndElement(paragraphIndex, elementIndex) {
-    return (
-      this.paragraphs
-        .slice(0, paragraphIndex)
-        .reduce((acc, p) => acc + p.getTotalLength() + 1, 0) +
-      this.paragraphs[paragraphIndex].getElementLengthUpTo(elementIndex)
-    );
+    const {
+      paragraphIndex: startParagraphIndex,
+      relativeIndex: startRelativeIndex,
+    } = this.getParagraphIndexFromGlobal(range.start);
+
+    const {
+      paragraphIndex: endParagraphIndex,
+      relativeIndex: endRelativeIndex,
+    } = this.getParagraphIndexFromGlobal(range.end);
+
+    if (startParagraphIndex === endParagraphIndex) {
+      // Apply style within a single paragraph
+      this.paragraphs[startParagraphIndex].applyStyleToRange(
+        startRelativeIndex,
+        endRelativeIndex,
+        style
+      );
+    } else {
+      // Apply style across multiple paragraphs
+      this.paragraphs[startParagraphIndex].applyStyleToRange(
+        startRelativeIndex,
+        this.paragraphs[startParagraphIndex].getTotalLength(),
+        style
+      );
+
+      for (let i = startParagraphIndex + 1; i < endParagraphIndex; i++) {
+        this.paragraphs[i].applyStyleToRange(
+          0,
+          this.paragraphs[i].getTotalLength(),
+          style
+        );
+      }
+
+      this.paragraphs[endParagraphIndex].applyStyleToRange(
+        0,
+        endRelativeIndex,
+        style
+      );
+    }
   }
 
   getParagraphIndexFromGlobal(globalIndex) {
@@ -38,6 +68,21 @@ class TextBuffer {
       paragraphIndex: this.paragraphs.length - 1,
       relativeIndex: lastParagraph.getTotalLength(),
     };
+  }
+
+  removeEmptyTextRuns() {
+    this.paragraphs.forEach((paragraph) => {
+      paragraph.removeEmptyTextRuns(this.cursorPosition);
+    });
+  }
+
+  getGlobalIndexFromParagraphAndElement(paragraphIndex, elementIndex) {
+    return (
+      this.paragraphs
+        .slice(0, paragraphIndex)
+        .reduce((acc, p) => acc + p.getTotalLength() + 1, 0) +
+      this.paragraphs[paragraphIndex].getElementLengthUpTo(elementIndex)
+    );
   }
 
   setCursorPosition(globalIndex) {
