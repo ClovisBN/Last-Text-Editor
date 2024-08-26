@@ -17,7 +17,6 @@ class TextEditor {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
 
-    // Utilisation de PageSettings pour définir les dimensions du canvas
     this.pageSettings = new PageSettings();
 
     this.canvas.width = this.pageSettings.canvasWidth;
@@ -45,7 +44,6 @@ class TextEditor {
       this.textBuffer
     );
 
-    // Gestionnaire d'événements
     this.eventManager = new EventManager(
       this.canvas,
       this.keyController,
@@ -68,7 +66,7 @@ class TextEditor {
 
   applyStyleToSelection(style) {
     this.textBuffer.applyStyleToSelection(this.selection, style);
-    this.render(); // Re-render to apply the new style visually
+    this.render();
   }
 }
 

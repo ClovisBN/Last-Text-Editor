@@ -1,5 +1,3 @@
-// src/KeyCommands/KeyController.js
-
 class KeyController {
   constructor(textEditor) {
     this.textEditor = textEditor;
@@ -69,7 +67,6 @@ class KeyController {
       cursor.position = textBuffer.getCursorPosition();
     }
 
-    // Afficher la structure JSON actuelle (uniquement en mode développement)
     if (process.env.NODE_ENV === "development") {
       console.log(JSON.stringify(textBuffer.toJSON(), null, 2));
     }

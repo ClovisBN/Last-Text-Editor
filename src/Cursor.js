@@ -74,7 +74,6 @@ class Cursor {
         const lineHeight = this._renderer.lineHeight;
 
         if (y >= accumulatedHeight && y < accumulatedHeight + lineHeight) {
-          // Si le clic est à l'intérieur de la hauteur de la ligne actuelle
           return this._getCursorPositionOnLine(x, line, cursorPosition);
         }
 
@@ -82,11 +81,9 @@ class Cursor {
         cursorPosition += line.length;
       }
 
-      // Ajouter un saut de ligne entre les paragraphes
       cursorPosition;
     }
 
-    // Si le clic est en dessous du texte
     if (y > accumulatedHeight) {
       const lastParagraph =
         this._textEditor.textBuffer.paragraphs[
@@ -100,14 +97,13 @@ class Cursor {
       );
     }
 
-    // Si le clic est au-dessus du texte
     if (y < this._pageSettings.marginTop) {
       const firstParagraph = this._textEditor.textBuffer.paragraphs[0];
       const firstLine = this._renderer.wrapText(firstParagraph)[0];
       return this._handleClickOutsideLine(x, firstLine, 0);
     }
 
-    return cursorPosition - 1; // Valeur par défaut si le clic est hors du texte
+    return cursorPosition - 1;
   }
 
   _handleClickOutsideLine(x, line, basePosition) {
@@ -115,11 +111,11 @@ class Cursor {
     const lineEndX = lineStartX + this._renderer._ctx.measureText(line).width;
 
     if (x <= lineStartX) {
-      return basePosition; // Placer le curseur au début de la ligne
+      return basePosition;
     } else if (x >= lineEndX) {
-      return basePosition + line.length - 1; // Placer le curseur à la fin de la ligne
+      return basePosition + line.length - 1;
     } else {
-      return this._getCursorPositionOnLine(x, line, basePosition); // Placer le curseur sur le caractère le plus proche
+      return this._getCursorPositionOnLine(x, line, basePosition);
     }
   }
 
@@ -130,9 +126,9 @@ class Cursor {
     const lineEndX = lineStartX + this._renderer._ctx.measureText(line).width;
 
     if (x <= lineStartX) {
-      return basePosition; // Le curseur est au début de la ligne
+      return basePosition;
     } else if (x >= lineEndX) {
-      return basePosition + line.length - 1; // Le curseur est à la fin de la ligne
+      return basePosition + line.length - 1;
     } else {
       let closestPosition = basePosition;
       let closestDistance = Infinity;

@@ -28,7 +28,6 @@ class TextBuffer {
         style
       );
     } else {
-      // Apply style across multiple paragraphs
       this.paragraphs[startParagraphIndex].applyStyleToRange(
         startRelativeIndex,
         this.paragraphs[startParagraphIndex].getTotalLength(),

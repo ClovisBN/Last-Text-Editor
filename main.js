@@ -3,14 +3,12 @@ import PageSettings from "./src/PageSettings";
 
 const canvas = document.getElementById("editorCanvas");
 
-// Utilisation de PageSettings pour définir les dimensions du canvas
 const pageSettings = new PageSettings();
-canvas.width = pageSettings.canvasWidth; // Accéder via getter
-canvas.height = pageSettings.canvasHeight; // Accéder via getter
+canvas.width = pageSettings.canvasWidth;
+canvas.height = pageSettings.canvasHeight;
 
 const editor = new TextEditor(canvas);
 
-// Ajout de gestionnaires pour les boutons de style
 document.getElementById("boldBtn").addEventListener("click", () => {
   editor.applyStyleToSelection({ fontWeight: "bold" });
 });

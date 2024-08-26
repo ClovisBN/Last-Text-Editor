@@ -36,17 +36,14 @@ class TextRun {
   }
 
   applyStyle(startIndex, endIndex, style) {
-    // Split the content into three parts: before, within, and after the style range
     const before = this.content.slice(0, startIndex);
     const within = this.content.slice(startIndex, endIndex);
     const after = this.content.slice(endIndex);
 
-    // Create new TextRuns
     const beforeRun = before ? new TextRun(before, this.textStyle) : null;
     const styledRun = new TextRun(within, { ...this.textStyle, ...style });
     const afterRun = after ? new TextRun(after, this.textStyle) : null;
 
-    // Return an array of the new TextRuns
     return [beforeRun, styledRun, afterRun].filter(Boolean);
   }
 

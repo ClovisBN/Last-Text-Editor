@@ -17,10 +17,8 @@ class Paragraph {
         currentIndex + elementLength < startIndex ||
         currentIndex > endIndex
       ) {
-        // Element is completely outside the range
         newElements.push(element);
       } else {
-        // Element is partially or completely within the range
         const elementStartIndex = Math.max(startIndex - currentIndex, 0);
         const elementEndIndex = Math.min(
           endIndex - currentIndex,

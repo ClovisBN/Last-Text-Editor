@@ -58,7 +58,7 @@ class TextRenderer {
   }
 
   render(textBuffer, cursor) {
-    this._clearCanvas(); // Ensure canvas is cleared before rendering
+    this._clearCanvas();
 
     let globalCursorIndex = cursor.position;
     let y = this.pageSettings.marginTop;
@@ -132,7 +132,7 @@ class TextRenderer {
     if (textStyle.color) {
       this._ctx.fillStyle = textStyle.color;
     } else {
-      this._ctx.fillStyle = "black"; // Default color
+      this._ctx.fillStyle = "black";
     }
   }
 
